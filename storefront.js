@@ -53,6 +53,15 @@ function validVideo(value) { try { const url = new URL(value); return url.protoc
 
 function setBrand() {
   const name = state.settings.storeName?.trim() || "متجر العملاء";
+  const hasLogo = validImage(state.settings.logoBase64);
+  document.body.classList.add("store-mode");
+  $("app-footer").hidden = true;
+  $("header-brand").href = "#products";
+  $("header-brand").setAttribute("aria-label", `الانتقال إلى منتجات ${name}`);
+  const headerLogo = $("header-logo"); headerLogo.hidden = !hasLogo;
+  if (hasLogo) { headerLogo.src = state.settings.logoBase64; headerLogo.alt = `شعار ${name}`; }
+  const headerName = $("header-brand-name"); headerName.className = "store-brand-name"; text(headerName, name);
+  text($("header-brand-subtitle"), "التسوق الإلكتروني");
   text($("store-hero-kicker"), `أهلًا بك في ${name}`); document.title = `${name} | المتجر الإلكتروني`;
 }
 
@@ -108,6 +117,10 @@ function makeProductCard(product) {
 
 function openFrame(payload) {
   state.framePayload = payload; $("frame-overlay").hidden = false; document.body.classList.add("lock-scroll");
+  const store = payload.view === "store" ? (payload.store || {}) : { storeName: payload.storeName, logoBase64: payload.logoBase64 || payload.product?.storeLogoBase64 };
+  const frameLogo = $("frame-brand-logo"); const hasLogo = validImage(store.logoBase64);
+  frameLogo.hidden = !hasLogo; if (hasLogo) { frameLogo.src = store.logoBase64; frameLogo.alt = `شعار ${store.storeName || "المتجر"}`; }
+  text($("frame-brand-name"), store.storeName || "تفاصيل المنتج");
   const frame = $("store-frame"); frame.onload = () => frame.contentWindow.postMessage({ type: "sales-express-frame", payload: state.framePayload }, location.origin);
   frame.src = "product-frame.html";
 }
