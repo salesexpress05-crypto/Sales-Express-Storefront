@@ -67,13 +67,16 @@ function setBrand() {
 
 function renderCategories() {
   const nav = $("category-nav"); nav.replaceChildren();
+  const quickNav = $("quick-category-nav"); quickNav.replaceChildren();
   const query = $("category-search-input").value.trim().toLocaleLowerCase("ar");
-  const all = document.createElement("button"); all.className = `category-chip ${state.activeCategory === "all" ? "active" : ""}`; all.type = "button"; all.innerHTML = '<span class="category-dot"></span><span>كل المنتجات</span>'; all.addEventListener("click", () => chooseCategory("all")); nav.append(all);
+  const makeChip = (key, name, allProducts = false, quick = false) => { const chip = document.createElement("button"); chip.className = `${quick ? "quick-category-chip" : "category-chip"} ${state.activeCategory === key ? "active" : ""}`; chip.type = "button"; if (allProducts) chip.innerHTML = '<span class="category-dot"></span><span>كل المنتجات</span>'; else chip.textContent = name; chip.addEventListener("click", () => chooseCategory(key)); return chip; };
+  nav.append(makeChip("all", "كل المنتجات", true));
+  quickNav.append(makeChip("all", "كل المنتجات", true, true));
   const filtered = state.categories.filter((category) => !query || category.name.toLocaleLowerCase("ar").includes(query));
   for (const category of filtered) {
-    const button = document.createElement("button"); button.className = `category-chip ${state.activeCategory === category.key ? "active" : ""}`; button.type = "button"; button.textContent = category.name;
-    button.addEventListener("click", () => chooseCategory(category.key)); nav.append(button);
+    nav.append(makeChip(category.key, category.name));
   }
+  for (const category of state.categories) quickNav.append(makeChip(category.key, category.name, false, true));
   text($("category-count"), state.categories.length.toLocaleString("ar-EG"));
   if (filtered.length === 0 && query) { const empty = document.createElement("p"); empty.className = "category-empty"; empty.textContent = "لا يوجد قسم بهذا الاسم"; nav.append(empty); }
 }
