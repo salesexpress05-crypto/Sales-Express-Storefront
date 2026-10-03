@@ -7,6 +7,7 @@ function send(action, code) { parent.postMessage({ source: "sales-express-frame"
 function element(tag, className, value) { const node = document.createElement(tag); if (className) node.className = className; if (value !== undefined) node.textContent = value; return node; }
 function renderStore(store) {
   content.replaceChildren(); content.className = "frame-content store-info-content";
+  const hero = element("section", "store-info-hero");
   const mark = element("div", "store-info-mark");
   if (validImage(store.logoBase64)) { const logo = document.createElement("img"); logo.src = store.logoBase64; logo.alt = "شعار المتجر"; mark.append(logo); }
   else mark.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 25h40l-4 29H16zM22 26a10 10 0 0 1 20 0M24 38h16"/></svg>';
@@ -19,7 +20,18 @@ function renderStore(store) {
   const phone = String(store.phoneNumber || "").trim();
   if (phone) { const anchor = element("a", "", phone); anchor.href = `tel:${phone.replace(/[^+\d]/g, "")}`; data.append(anchor); }
   else data.append(element("strong", "", "يرجى التواصل عبر بيانات الطلب"));
-  card.append(icon, data); content.append(mark, kicker, title, intro, card);
+  card.append(icon, data); hero.append(mark, kicker, title, intro); content.append(hero, card);
+  const address = String(store.address || store.storeAddress || store.branchAddress || "").trim();
+  if (address) {
+    const addressCard = element("div", "store-contact-card store-address-card");
+    const addressIcon = element("span", "contact-icon"); addressIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Z"></path><circle cx="12" cy="9" r="2.3"></circle></svg>';
+    const addressCopy = element("div", "contact-copy"); addressCopy.append(element("small", "", "عنوان المتجر"), element("strong", "address-text", address));
+    addressCard.append(addressIcon, addressCopy); content.append(addressCard);
+    const maps = element("div", "store-map-links"); const query = encodeURIComponent(address);
+    const google = element("a", "", "فتح في Google Maps"); google.href = `https://www.google.com/maps/search/?api=1&query=${query}`; google.target = "_blank"; google.rel = "noopener";
+    const apple = element("a", "", "فتح في Apple Maps"); apple.href = `https://maps.apple.com/?q=${query}`; apple.target = "_blank"; apple.rel = "noopener";
+    maps.append(google, apple); content.append(maps);
+  }
   const foot = element("div", "store-info-note", "الطلبات تُرسل مباشرة إلى المتجر. السعر المعروض لا يشمل التوصيل."); content.append(foot);
 }
 function renderProduct(product, storeName) {
@@ -57,3 +69,4 @@ window.addEventListener("message", (event) => {
   else if (payload.view === "product") renderProduct(payload.product || {}, payload.storeName);
   content.hidden = false; loading.hidden = true;
 });
+send("ready");

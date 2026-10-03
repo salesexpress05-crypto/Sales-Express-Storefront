@@ -21,12 +21,36 @@ async function createOrder(payload) {
   if (!response.ok) throw new Error("تعذر إرسال الطلب. تحقق من اتصال الموقع وإعداد قواعد Firebase.");
   return response.json();
 }
+async function writePublicOrderStatus(orderId, status, cancelToken) {
+  const response = await fetch(dbUrl(`storefrontOrderStatus/${storeId}/${encodeURIComponent(orderId)}`), {
+    method: "PUT", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({ status, cancelToken, updatedAtUtc: new Date().toISOString() }), cache: "no-store"
+  });
+  if (!response.ok) throw new Error("تعذر حفظ حالة الطلب.");
+}
+async function refreshOrderStatuses() {
+  if (!safeId.test(storeId || "")) return;
+  const history = readOrderHistory();
+  if (history.length === 0) return;
+  let changed = false;
+  await Promise.all(history.map(async (order) => {
+    try {
+      const status = await read(`storefrontOrderStatus/${storeId}/${encodeURIComponent(order.id)}`);
+      if (status && typeof status.status === "string" && order.status !== status.status) {
+        order.status = status.status; order.updatedAtUtc = status.updatedAtUtc || order.updatedAtUtc; changed = true;
+      }
+    } catch { /* The receipt stays available locally when the customer is offline. */ }
+  }));
+  if (changed) saveOrderHistory(history);
+  renderOrderHistory();
+}
 async function cancelOrder(order) {
   const response = await fetch(dbUrl(`storefrontOrders/${storeId}/${encodeURIComponent(order.id)}`), {
     method: "PATCH", headers: { "Content-Type": "application/json", "Accept": "application/json" },
     body: JSON.stringify({ status: "Cancelled", updatedAtUtc: new Date().toISOString(), cancelToken: order.cancelToken }), cache: "no-store"
   });
   if (!response.ok) throw new Error("تعذر إلغاء الطلب. قد يكون المتجر بدأ تجهيزه بالفعل.");
+  await writePublicOrderStatus(order.id, "Cancelled", order.cancelToken);
   order.status = "Cancelled"; order.updatedAtUtc = new Date().toISOString();
   const history = readOrderHistory(); saveOrderHistory(history); renderOrderHistory();
 }
@@ -38,7 +62,9 @@ function renderOrderHistory() {
     const details = document.createElement("div");
     const heading = document.createElement("strong"); heading.textContent = `طلب ${order.id.slice(-7)}`;
     const meta = document.createElement("p"); meta.textContent = `${new Date(order.createdAtUtc).toLocaleString("ar-EG")} · ${order.itemCount} صنف · ${money(order.total)}`;
-    const status = document.createElement("span"); status.className = `history-status ${order.status === "Cancelled" ? "cancelled" : "pending"}`; status.textContent = order.status === "Cancelled" ? "تم الإلغاء" : "قيد المراجعة";
+    const status = document.createElement("span");
+    status.className = `history-status ${order.status === "Cancelled" ? "cancelled" : "pending"}`;
+    status.textContent = order.status === "Cancelled" ? "تم الإلغاء" : order.status === "Confirmed" ? "تم تأكيد طلبك" : order.status === "Delivered" ? "تم تنفيذ الطلب" : "قيد المراجعة";
     details.append(heading, meta, status); card.append(details);
     if (order.status === "New") { const cancel = document.createElement("button"); cancel.className = "cancel-order"; cancel.type = "button"; cancel.textContent = "إلغاء الطلب"; cancel.addEventListener("click", async () => { cancel.disabled = true; try { await cancelOrder(order); } catch (error) { cancel.disabled = false; alert(error.message); } }); card.append(cancel); }
     host.append(card);
@@ -55,7 +81,7 @@ function setBrand() {
   const name = state.settings.storeName?.trim() || "متجر العملاء";
   const hasLogo = validImage(state.settings.logoBase64);
   document.body.classList.add("store-mode");
-  $("app-footer").hidden = true;
+  $("app-footer").hidden = false;
   $("header-brand").href = "#products";
   $("header-brand").setAttribute("aria-label", `الانتقال إلى منتجات ${name}`);
   const headerLogo = $("header-logo"); headerLogo.hidden = !hasLogo;
@@ -169,6 +195,7 @@ async function submitCheckout(event) {
   try {
     const createdAtUtc = new Date().toISOString();
     const result = await createOrder({ customerName: String(form.get("customerName")).trim(), phone: String(form.get("phone")).trim(), address: String(form.get("address")).trim(), notes: String(form.get("notes") || "").trim(), items, status: "New", createdAtUtc, cancelToken });
+    await writePublicOrderStatus(result.name, "New", cancelToken);
     const history = readOrderHistory(); history.unshift({ id: result.name, cancelToken, createdAtUtc, itemCount: entries.length, total, status: "New" }); saveOrderHistory(history); renderOrderHistory();
     state.cart.clear(); renderCart(); formElement.reset(); message.className = "form-message success"; text(message, "تم استلام طلبك. يمكنك متابعة الطلب أو إلغاؤه من «طلباتي» ما دام قيد المراجعة.");
     setTimeout(closeCheckout, 2800);
@@ -203,7 +230,7 @@ $("search-input").addEventListener("input", renderProducts);
 $("cart-open").addEventListener("click", openCart); $("cart-close").addEventListener("click", closeCart); $("cart-overlay").addEventListener("click", closeCart);
 $("checkout-open").addEventListener("click", openCheckout); $("checkout-close").addEventListener("click", closeCheckout); $("checkout-overlay").addEventListener("click", closeCheckout);
 $("checkout-form").addEventListener("submit", submitCheckout);
-$("orders-open").addEventListener("click", () => { renderOrderHistory(); $("customer-orders").hidden = false; $("customer-orders").scrollIntoView({ behavior: "smooth", block: "center" }); });
+$("orders-open").addEventListener("click", () => { renderOrderHistory(); refreshOrderStatuses(); $("customer-orders").hidden = false; $("customer-orders").scrollIntoView({ behavior: "smooth", block: "center" }); });
 $("orders-close").addEventListener("click", () => { $("customer-orders").hidden = true; });
 $("categories-open").addEventListener("click", () => { const panel = $("category-panel"); panel.hidden = !panel.hidden; $("categories-open").setAttribute("aria-expanded", String(!panel.hidden)); if (!panel.hidden) { $("category-search-input").value = ""; renderCategories(); $("category-search-input").focus(); } });
 $("categories-close").addEventListener("click", () => { $("category-panel").hidden = true; $("categories-open").setAttribute("aria-expanded", "false"); });
@@ -211,7 +238,13 @@ $("category-search-input").addEventListener("input", renderCategories);
 $("store-info-open").addEventListener("click", () => openFrame({ view: "store", store: state.settings }));
 $("frame-close").addEventListener("click", closeFrame);
 $("frame-overlay").addEventListener("click", (event) => { if (event.target === $("frame-overlay")) closeFrame(); });
-window.addEventListener("message", (event) => { if (event.origin !== location.origin || event.source !== $("store-frame").contentWindow || !event.data || event.data.source !== "sales-express-frame") return; if (event.data.action === "add-to-cart") addToCart(event.data.code); if (event.data.action === "close") closeFrame(); });
+window.addEventListener("message", (event) => {
+  if (event.origin !== location.origin || event.source !== $("store-frame").contentWindow || !event.data || event.data.source !== "sales-express-frame") return;
+  if (event.data.action === "ready" && state.framePayload) $("store-frame").contentWindow.postMessage({ type: "sales-express-frame", payload: state.framePayload }, location.origin);
+  if (event.data.action === "add-to-cart") addToCart(event.data.code);
+  if (event.data.action === "close") closeFrame();
+});
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { closeCart(); closeCheckout(); closeFrame(); $("category-panel").hidden = true; } });
 loadStore();
 renderOrderHistory();
+refreshOrderStatuses();
