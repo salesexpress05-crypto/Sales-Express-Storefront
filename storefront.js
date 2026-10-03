@@ -3,7 +3,10 @@ const firebaseDatabaseUrl = window.firebaseDatabaseUrl;
 let storeId = new URLSearchParams(location.search).get("store") || "";
 const safeId = /^[A-Za-z0-9_-]{1,128}$/;
 const state = { settings: {}, categories: [], products: [], cart: new Map(), activeCategory: "all", busy: false, framePayload: null };
+let framePayloadRetry = 0;
 const ordersStorageKey = () => `sales-express-orders:${storeId}`;
+function finishInitialLoading() { const loader = $("loading"); if (!loader) return; loader.classList.add("done"); setTimeout(() => { loader.hidden = true; }, 300); }
+setTimeout(finishInitialLoading, 4500);
 function readOrderHistory() { try { const data = JSON.parse(localStorage.getItem(ordersStorageKey()) || "[]"); return Array.isArray(data) ? data : []; } catch { return []; } }
 function saveOrderHistory(items) { try { localStorage.setItem(ordersStorageKey(), JSON.stringify(items.slice(0, 30))); } catch {} }
 
@@ -150,12 +153,14 @@ function openFrame(payload) {
   const frameLogo = $("frame-brand-logo"); const hasLogo = validImage(store.logoBase64);
   frameLogo.hidden = !hasLogo; if (hasLogo) { frameLogo.src = store.logoBase64; frameLogo.alt = `شعار ${store.storeName || "المتجر"}`; }
   text($("frame-brand-name"), store.storeName || "تفاصيل المنتج");
-  const frame = $("store-frame"); frame.onload = () => frame.contentWindow.postMessage({ type: "sales-express-frame", payload: state.framePayload }, location.origin);
-  frame.src = "product-frame.html";
+  const frame = $("store-frame");
+  const sendPayload = () => { if (state.framePayload && frame.src !== "about:blank") frame.contentWindow.postMessage({ type: "sales-express-frame", payload: state.framePayload }, location.origin); };
+  frame.onload = () => { sendPayload(); framePayloadRetry = 0; const retry = () => { if (!state.framePayload || framePayloadRetry++ >= 12) return; sendPayload(); setTimeout(retry, 160); }; setTimeout(retry, 160); };
+  frame.src = "product-frame.html?v=20261003";
 }
 function openProductDetails(product) { openFrame({ view: "product", product: { ...product, storeLogoBase64: state.settings.logoBase64 }, storeName: state.settings.storeName, logoBase64: state.settings.logoBase64 }); }
 function openStoreDetails() { openFrame({ view: "store", store: state.settings }); }
-function closeFrame() { $("frame-overlay").hidden = true; $("store-frame").src = "about:blank"; state.framePayload = null; if (!$("cart-drawer").classList.contains("open") && !$("checkout-modal").classList.contains("open")) document.body.classList.remove("lock-scroll"); }
+function closeFrame() { framePayloadRetry = 0; $("frame-overlay").hidden = true; $("store-frame").src = "about:blank"; state.framePayload = null; if (!$("cart-drawer").classList.contains("open") && !$("checkout-modal").classList.contains("open")) document.body.classList.remove("lock-scroll"); }
 
 function addToCart(code) { const current = state.cart.get(code); state.cart.set(code, { product: current?.product || state.products.find((item) => item.code === code), quantity: (current?.quantity || 0) + 1 }); renderCart(); }
 function changeQuantity(code, delta) { const entry = state.cart.get(code); if (!entry) return; entry.quantity += delta; if (entry.quantity <= 0) state.cart.delete(code); renderCart(); }
@@ -208,7 +213,8 @@ async function loadStore() {
     $("marketing-view").hidden = false; $("storefront-view").hidden = true;
     $("store-search").hidden = true; $("marketing-nav").hidden = false; $("store-actions").hidden = true;
     document.title = "Sales Express | إدارة مبيعاتك بسهولة";
-    $("loading").classList.add("done"); setTimeout(() => { $("loading").hidden = true; }, 250);
+    $("customer-orders").hidden = true;
+    finishInitialLoading();
     return;
   }
   try {
@@ -223,7 +229,7 @@ async function loadStore() {
     if (state.products.length === 0) { $("notice").hidden = false; text($("notice"), "لا توجد منتجات معروضة حاليًا. عد لاحقًا لاكتشاف الجديد."); }
   } catch (error) {
     $("notice").hidden = false; text($("notice"), `${error.message} قد يحتاج مالك المتجر إلى تفعيل قواعد القراءة العامة لكتالوج العرض فقط.`);
-  } finally { $("loading").classList.add("done"); setTimeout(() => { $("loading").hidden = true; }, 300); }
+  } finally { finishInitialLoading(); }
 }
 
 $("search-input").addEventListener("input", renderProducts);
@@ -246,5 +252,4 @@ window.addEventListener("message", (event) => {
 });
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { closeCart(); closeCheckout(); closeFrame(); $("category-panel").hidden = true; } });
 loadStore();
-renderOrderHistory();
-refreshOrderStatuses();
+if (safeId.test(storeId || "")) { renderOrderHistory(); refreshOrderStatuses(); }
