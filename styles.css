@@ -21,3 +21,27 @@
 .quick-category-nav{display:flex;align-items:center;gap:8px;overflow-x:auto;margin-bottom:31px;padding:2px 1px 9px;scrollbar-width:thin}.quick-category-chip{height:38px;flex:0 0 auto;padding:0 14px;border:1px solid #e6e9eb;border-radius:999px;background:#fff;color:#58646e;font-size:11px;font-weight:750;white-space:nowrap;transition:.18s}.quick-category-chip:hover{border-color:#f2bb99;color:#bc571f;background:#fff9f5}.quick-category-chip.active{border-color:#f47b37;background:#f47b37;color:#fff;box-shadow:0 6px 16px #f47b3733}.quick-category-chip .category-dot{display:inline-block;vertical-align:middle;margin-inline-end:7px;background:currentColor;box-shadow:none}
 @media(max-width:850px){.store-mode .app-brand{min-width:135px}.store-mode .app-logo{width:40px;height:40px}.store-mode .store-brand-name{font-size:13px}.store-mode .header-icon-button{padding:0 8px}.store-mode .store-hero{padding:29px 30px}.store-mode .store-hero h1{font-size:34px}}
 @media(max-width:620px){.store-mode .header-main{gap:7px}.store-mode .app-brand{min-width:0;flex:1}.store-mode .app-brand small{font-size:8px}.store-mode .header-actions{margin-inline-start:auto}.store-mode .header-icon-button{width:35px;min-width:35px;padding:0}.store-mode .header-icon-button span{display:none}.store-mode .cart-button{padding:0 9px}.store-mode .store-hero{min-height:315px;padding:27px 22px}.store-mode .store-hero h1{font-size:32px}.store-mode .store-hero-art{opacity:.3}.store-mode .search{order:3}.store-mode .product-grid{gap:10px}.store-mode .section-heading{align-items:center}}
+
+/* Refined merchant storefront: real product imagery and restrained retail surfaces. */
+.store-mode{background:linear-gradient(180deg,#fbfcfd 0,#f4f6f7 52%,#fff 100%)}
+.store-mode .site-header{background:#fffffff2;backdrop-filter:blur(16px);border-bottom:1px solid #e7ecef;box-shadow:0 6px 22px #1a293009}
+.store-mode .store-hero{isolation:isolate;min-height:260px;border:1px solid #405361;border-radius:22px;box-shadow:0 22px 45px #1d2d3726;background-image:linear-gradient(125deg,#17232d 0%,#263d4c 54%,#ba5527 160%)}
+.store-mode .store-hero:before{content:"";position:absolute;inset:auto -10% -62% auto;width:330px;height:330px;border:1px solid #ffffff1f;border-radius:50%;box-shadow:0 0 0 34px #ffffff08,0 0 0 68px #ffffff05;z-index:-1}
+.store-mode .store-hero:after{width:440px;height:440px;left:-15%;top:-80%;background:radial-gradient(circle,#f4915735 0,transparent 68%)}
+.store-mode .store-hero h1{letter-spacing:-.5px;text-wrap:balance}
+.store-mode .store-hero .primary-link{border:1px solid #ffd0b7;box-shadow:0 9px 20px #00000020}
+.store-mode .quick-category-nav{padding:6px 3px 12px;margin-bottom:25px;scroll-padding-inline:4px}
+.store-mode .quick-category-chip{height:40px;padding-inline:16px;border-color:#dde4e7;background:#fffffff2;box-shadow:0 3px 10px #1a293007}
+.store-mode .section-heading{margin-bottom:21px}
+.store-mode .product-grid{gap:16px}
+.store-mode .product-card{border-color:#e2e8eb;border-radius:16px;box-shadow:0 7px 18px #1c29310a}
+.store-mode .product-card:hover{transform:translateY(-5px);border-color:#eb9a70;box-shadow:0 18px 35px #1c29321a}
+.store-mode .product-image{height:205px;padding:14px;background:linear-gradient(145deg,#f9fafb,#f0f3f4);border-bottom-color:#e7ecee}
+.store-mode .product-info{padding:14px}
+.store-mode .product-category{letter-spacing:.1px}
+.store-mode .product-name{font-size:12px;line-height:1.7}
+.store-mode .current-price{color:#b94f20;font-size:15px}
+.store-mode .details-button{border-color:#dbe3e6;border-radius:9px}
+.store-mode .add-cart{border-radius:9px;box-shadow:0 5px 12px #f47b3733}
+@media(max-width:850px){.store-mode .store-hero{min-height:245px}.store-mode .product-grid{gap:13px}.store-mode .product-image{height:185px}}
+@media(max-width:620px){.store-mode .store-hero{min-height:214px;border-radius:17px;box-shadow:0 14px 29px #1d2d3722}.store-mode .store-hero:before{width:220px;height:220px;bottom:-78%;right:-18%;box-shadow:0 0 0 22px #ffffff08,0 0 0 45px #ffffff05}.store-mode .quick-category-nav{margin-bottom:19px}.store-mode .product-grid{gap:10px}.store-mode .product-card{border-radius:13px}.store-mode .product-image{height:150px;padding:9px}.store-mode .product-info{padding:10px}.store-mode .current-price{font-size:13px}}
