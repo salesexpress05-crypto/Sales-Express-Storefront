@@ -37,9 +37,13 @@ function renderProduct(product, storeName) {
   const title = element("h1", "detail-title", product.name || "منتج");
   const code = element("p", "detail-code", `كود المنتج: ${product.code || "—"}`);
   const priceLine = element("div", "detail-price-line"); const price = Number(product.discountPrice) > 0 ? Number(product.discountPrice) : Number(product.price || 0); priceLine.append(element("strong", "detail-price", money(price))); if (Number(product.discountPrice) > 0) priceLine.append(element("del", "detail-old-price", money(product.price)));
-  const description = element("p", "detail-description", product.description || "لا يوجد وصف إضافي لهذا المنتج.");
+  const fullDescription = [product.description, product.notes, product.details, product.specifications].filter((value, index, all) => typeof value === "string" && value.trim() && all.indexOf(value) === index).join("\n\n");
+  const description = element("p", "detail-description", fullDescription || "لا يوجد وصف إضافي لهذا المنتج.");
   const rule = element("div", "detail-divider");
-  const store = element("div", "detail-store-line"); const mark = document.createElement("img"); mark.className = "detail-store-logo"; mark.alt = ""; mark.src = validImage(product.storeLogoBase64) ? product.storeLogoBase64 : "assets/sales-express.png"; store.append(mark, element("span", "", `يباع لدى ${storeName || "المتجر"}`));
+  const store = element("div", "detail-store-line");
+  if (validImage(product.storeLogoBase64)) { const mark = document.createElement("img"); mark.className = "detail-store-logo"; mark.alt = `شعار ${storeName || "المتجر"}`; mark.src = product.storeLogoBase64; store.append(mark); }
+  else { const mark = element("span", "detail-store-fallback", "م"); mark.setAttribute("aria-hidden", "true"); store.append(mark); }
+  store.append(element("span", "", `يباع لدى ${storeName || "المتجر"}`));
   const add = element("button", "detail-add-button", "أضف إلى السلة"); add.type = "button"; add.addEventListener("click", () => send("add-to-cart", product.code));
   info.append(category, title, code, priceLine, description, rule, store);
   const videoUrl = safeVideoUrl(product.videoUrl);
