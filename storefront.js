@@ -6,9 +6,18 @@ let storeId = new URLSearchParams(location.search).get("store") || "";
 const safeId = /^(?:s_[a-f0-9]{32}|[A-Za-z0-9_-]{20,128})$/;
 const state = { settings: {}, categories: [], products: [], cart: new Map(), activeCategory: "all", busy: false, framePayload: null };
 let framePayloadRetry = 0;
+let initialLoadingFinished = false;
 const ordersStorageKey = () => `sales-express-orders:${storeId}`;
-function finishInitialLoading() { const loader = $("loading"); if (!loader) return; loader.classList.add("done"); setTimeout(() => { loader.hidden = true; }, 300); }
-setTimeout(finishInitialLoading, 4500);
+function finishInitialLoading() {
+  if (initialLoadingFinished) return;
+  initialLoadingFinished = true;
+  const loader = $("loading");
+  if (!loader) return;
+  loader.classList.add("done");
+  window.setTimeout(() => { loader.hidden = true; loader.setAttribute("aria-hidden", "true"); }, 180);
+}
+// A failed remote request must never leave the storefront behind a permanent spinner.
+window.setTimeout(finishInitialLoading, 5000);
 function readOrderHistory() { try { const data = JSON.parse(localStorage.getItem(ordersStorageKey()) || "[]"); return Array.isArray(data) ? data : []; } catch { return []; } }
 function saveOrderHistory(items) { try { localStorage.setItem(ordersStorageKey(), JSON.stringify(items.slice(0, 30))); } catch {} }
 
@@ -152,7 +161,7 @@ function openFrame(payload) {
   const frame = $("store-frame");
   const sendPayload = () => { if (state.framePayload && frame.src !== "about:blank") frame.contentWindow.postMessage({ type: "sales-express-frame", payload: state.framePayload }, location.origin); };
   frame.onload = () => { sendPayload(); framePayloadRetry = 0; const retry = () => { if (!state.framePayload || framePayloadRetry++ >= 12) return; sendPayload(); setTimeout(retry, 160); }; setTimeout(retry, 160); };
-  frame.src = "product-frame.html?v=20261003";
+  frame.src = "product-frame.html?v=20261126.3";
 }
 function openProductDetails(product) { openFrame({ view: "product", product: { ...product, storeLogoBase64: state.settings.logoBase64 }, storeName: state.settings.storeName, logoBase64: state.settings.logoBase64 }); }
 function openStoreDetails() { openFrame({ view: "store", store: state.settings }); }
@@ -218,6 +227,13 @@ async function loadStore() {
     const root = `storefrontPublic/${storeId}`;
     const [settings, categoryData, productData] = await Promise.all([read(`${root}/settings`), read(`${root}/categories`), read(`${root}/products`)]);
     state.settings = settings || {};
+    const redirectTo = typeof settings?.redirectTo === "string" ? settings.redirectTo : "";
+    if (redirectTo && redirectTo !== storeId && safeId.test(redirectTo)) {
+      const canonicalUrl = new URL(location.href);
+      canonicalUrl.searchParams.set("store", redirectTo);
+      location.replace(canonicalUrl.toString());
+      return;
+    }
     if (!settings || (Object.keys(settings).length === 0 && Object.keys(categoryData || {}).length === 0 && Object.keys(productData || {}).length === 0)) {
       throw new Error("رابط المتجر غير صالح أو لم يعد متاحًا.");
     }

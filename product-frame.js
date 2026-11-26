@@ -1,5 +1,20 @@
 const content = document.getElementById("frame-content");
 const loading = document.getElementById("frame-loading");
+let payloadReceived = false;
+let loadingCompleted = false;
+function finishFrameLoading() {
+  if (loadingCompleted) return;
+  loadingCompleted = true;
+  loading.classList.add("done");
+  window.setTimeout(() => { loading.hidden = true; loading.setAttribute("aria-hidden", "true"); }, 160);
+}
+function renderFallback() {
+  if (payloadReceived) return;
+  content.replaceChildren(); content.className = "frame-content frame-fallback";
+  const title = element("h1", "frame-fallback-title", "تعذر تحميل المحتوى");
+  const detail = element("p", "frame-fallback-copy", "أغلق النافذة ثم أعد فتحها. لا يؤثر ذلك في سلة التسوق أو الطلبات.");
+  content.append(title, detail); content.hidden = false; finishFrameLoading();
+}
 const money = (amount) => `${Number(amount || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
 const validImage = (value) => typeof value === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(value);
 function safeVideoUrl(value) { try { const url = new URL(value); return url.protocol === "https:" && /\.(mp4|webm|ogg)$/i.test(url.pathname) ? url.href : ""; } catch { return ""; } }
@@ -63,12 +78,16 @@ function renderProduct(product, storeName) {
   info.append(add); content.append(gallery, info);
 }
 function showPayload(payload) {
+  payloadReceived = true;
   if (payload.view === "store") renderStore(payload.store || {});
   else if (payload.view === "product") renderProduct(payload.product || {}, payload.storeName);
-  content.hidden = false; loading.hidden = true;
+  else { payloadReceived = false; renderFallback(); return; }
+  content.hidden = false; finishFrameLoading();
 }
 window.addEventListener("message", (event) => {
   if (event.origin !== location.origin || event.source !== parent || !event.data || event.data.type !== "sales-express-frame") return;
   showPayload(event.data.payload || {});
 });
 window.addEventListener("load", () => { send("ready"); setTimeout(() => send("ready"), 250); setTimeout(() => send("ready"), 700); });
+// Parent messages are retried, but show a clear state instead of an endless spinner if the frame cannot receive one.
+window.setTimeout(renderFallback, 3500);
