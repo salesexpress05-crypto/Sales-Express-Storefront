@@ -62,11 +62,13 @@ function renderProduct(product, storeName) {
   if (videoUrl) { const videoBlock = element("section", "detail-video-block"); videoBlock.append(element("h2", "", "فيديو المنتج")); const video = document.createElement("video"); video.controls = true; video.playsInline = true; video.preload = "metadata"; video.src = videoUrl; videoBlock.append(video); info.append(videoBlock); }
   info.append(add); content.append(gallery, info);
 }
-window.addEventListener("message", (event) => {
-  if (event.origin !== location.origin || event.source !== parent || !event.data || event.data.type !== "sales-express-frame") return;
-  const payload = event.data.payload || {};
+function showPayload(payload) {
   if (payload.view === "store") renderStore(payload.store || {});
   else if (payload.view === "product") renderProduct(payload.product || {}, payload.storeName);
   content.hidden = false; loading.hidden = true;
+}
+window.addEventListener("message", (event) => {
+  if (event.origin !== location.origin || event.source !== parent || !event.data || event.data.type !== "sales-express-frame") return;
+  showPayload(event.data.payload || {});
 });
-send("ready");
+window.addEventListener("load", () => { send("ready"); setTimeout(() => send("ready"), 250); setTimeout(() => send("ready"), 700); });
