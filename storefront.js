@@ -1,7 +1,8 @@
 const $ = (id) => document.getElementById(id);
 const firebaseDatabaseUrl = window.firebaseDatabaseUrl;
 let storeId = new URLSearchParams(location.search).get("store") || "";
-const safeId = /^[A-Za-z0-9_-]{1,128}$/;
+// A public store address is an opaque random key, not a Firebase/Google account id.
+const safeId = /^s_[a-f0-9]{32}$/;
 const state = { settings: {}, categories: [], products: [], cart: new Map(), activeCategory: "all", busy: false, framePayload: null };
 let framePayloadRetry = 0;
 const ordersStorageKey = () => `sales-express-orders:${storeId}`;
@@ -24,19 +25,14 @@ async function createOrder(payload) {
   if (!response.ok) throw new Error("تعذر إرسال الطلب. تحقق من اتصال الموقع وإعداد قواعد Firebase.");
   return response.json();
 }
-async function writePublicOrderStatus(orderId, status, cancelToken) {
-  const response = await fetch(dbUrl(`storefrontOrderStatus/${storeId}/${encodeURIComponent(orderId)}`), {
-    method: "PUT", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify({ status, cancelToken, updatedAtUtc: new Date().toISOString() }), cache: "no-store"
-  });
-  if (!response.ok) throw new Error("تعذر حفظ حالة الطلب.");
-}
 async function refreshOrderStatuses() {
   if (!safeId.test(storeId || "")) return;
   const history = readOrderHistory();
   if (history.length === 0) return;
   let changed = false;
   await Promise.all(history.map(async (order) => {
+    // Keep the customer's private cancellation even if an older public status is cached.
+    if (order.status === "Cancelled") return;
     try {
       const status = await read(`storefrontOrderStatus/${storeId}/${encodeURIComponent(order.id)}`);
       if (status && typeof status.status === "string" && order.status !== status.status) {
@@ -53,7 +49,6 @@ async function cancelOrder(order) {
     body: JSON.stringify({ status: "Cancelled", updatedAtUtc: new Date().toISOString(), cancelToken: order.cancelToken }), cache: "no-store"
   });
   if (!response.ok) throw new Error("تعذر إلغاء الطلب. قد يكون المتجر بدأ تجهيزه بالفعل.");
-  await writePublicOrderStatus(order.id, "Cancelled", order.cancelToken);
   order.status = "Cancelled"; order.updatedAtUtc = new Date().toISOString();
   const history = readOrderHistory(); saveOrderHistory(history); renderOrderHistory();
 }
@@ -200,7 +195,6 @@ async function submitCheckout(event) {
   try {
     const createdAtUtc = new Date().toISOString();
     const result = await createOrder({ customerName: String(form.get("customerName")).trim(), phone: String(form.get("phone")).trim(), address: String(form.get("address")).trim(), notes: String(form.get("notes") || "").trim(), items, status: "New", createdAtUtc, cancelToken });
-    await writePublicOrderStatus(result.name, "New", cancelToken);
     const history = readOrderHistory(); history.unshift({ id: result.name, cancelToken, createdAtUtc, itemCount: entries.length, total, status: "New" }); saveOrderHistory(history); renderOrderHistory();
     state.cart.clear(); renderCart(); formElement.reset(); message.className = "form-message success"; text(message, "تم استلام طلبك. يمكنك متابعة الطلب أو إلغاؤه من «طلباتي» ما دام قيد المراجعة.");
     setTimeout(closeCheckout, 2800);
@@ -223,6 +217,9 @@ async function loadStore() {
     const root = `storefrontPublic/${storeId}`;
     const [settings, categoryData, productData] = await Promise.all([read(`${root}/settings`), read(`${root}/categories`), read(`${root}/products`)]);
     state.settings = settings || {};
+    if (!settings || (Object.keys(settings).length === 0 && Object.keys(categoryData || {}).length === 0 && Object.keys(productData || {}).length === 0)) {
+      throw new Error("رابط المتجر غير صالح أو لم يعد متاحًا.");
+    }
     state.categories = Object.entries(categoryData || {}).map(([key, value]) => ({ key, ...value })).sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
     state.products = Object.entries(productData || {}).map(([key, value]) => ({ key, ...value })).filter((item) => item.visible !== false);
     setBrand(); renderCategories(); renderProducts(); renderCart();
