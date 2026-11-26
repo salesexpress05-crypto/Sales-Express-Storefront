@@ -1,8 +1,9 @@
 const $ = (id) => document.getElementById(id);
 const firebaseDatabaseUrl = window.firebaseDatabaseUrl;
 let storeId = new URLSearchParams(location.search).get("store") || "";
-// A public store address is an opaque random key, not a Firebase/Google account id.
-const safeId = /^s_[a-f0-9]{32}$/;
+// New storefront addresses are opaque random keys. The second form only preserves
+// pre-migration merchant links until their owner opens Storefront Settings once.
+const safeId = /^(?:s_[a-f0-9]{32}|[A-Za-z0-9_-]{20,128})$/;
 const state = { settings: {}, categories: [], products: [], cart: new Map(), activeCategory: "all", busy: false, framePayload: null };
 let framePayloadRetry = 0;
 const ordersStorageKey = () => `sales-express-orders:${storeId}`;
