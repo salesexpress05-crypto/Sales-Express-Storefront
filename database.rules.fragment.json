@@ -1,0 +1,46 @@
+{
+  "storefronts": {
+    "$ownerUid": {
+      ".read": "auth != null && auth.uid === $ownerUid",
+      ".write": "auth != null && auth.uid === $ownerUid"
+    }
+  },
+  "storefrontPublic": {
+    "$ownerUid": {
+      ".read": true,
+      ".write": "auth != null && auth.uid === $ownerUid"
+    }
+  },
+  "storefrontOrders": {
+    "$ownerUid": {
+      "$orderId": {
+        ".read": "auth != null && auth.uid === $ownerUid",
+        ".write": "(auth == null && ((!data.exists() && newData.exists()) || ((data.child('status').val() === 'New' || data.child('status').val() === 'Confirmed') && newData.child('status').val() === 'Cancelled' && data.child('cancelToken').isString() && data.child('cancelToken').val() === newData.child('cancelToken').val()))) || (auth != null && auth.uid === $ownerUid)",
+        ".validate": "newData.hasChildren(['customerName', 'phone', 'address', 'items', 'status', 'createdAtUtc', 'cancelToken']) && newData.child('customerName').isString() && newData.child('customerName').val().length <= 100 && newData.child('phone').isString() && newData.child('phone').val().length <= 30 && newData.child('address').isString() && newData.child('address').val().length <= 500 && newData.child('createdAtUtc').isString() && newData.child('items').hasChildren() && newData.child('items').numChildren() <= 50 && newData.child('cancelToken').isString() && newData.child('cancelToken').val().length >= 32 && newData.child('cancelToken').val().length <= 128 && (newData.child('status').val() === 'New' || (auth == null && (data.child('status').val() === 'New' || data.child('status').val() === 'Confirmed') && newData.child('status').val() === 'Cancelled' && data.child('cancelToken').val() === newData.child('cancelToken').val()) || (auth != null && auth.uid === $ownerUid))",
+        "notes": { ".validate": "newData.isString() && newData.val().length <= 300" },
+        "updatedAtUtc": { ".validate": "newData.isString()" },
+        "cancelToken": { ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 128" },
+        "items": {
+          "$itemId": {
+            ".validate": "newData.hasChildren(['code', 'quantity'])",
+            "code": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 128" },
+            "quantity": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99 && newData.val() % 1 === 0" },
+            "$other": { ".validate": false }
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+  ,
+  "storefrontOrderStatus": {
+    "$ownerUid": {
+      "$orderId": {
+        ".read": true,
+        ".write": "(auth != null && auth.uid === $ownerUid) || (auth == null && ((!data.exists() && newData.child('status').val() === 'New' && newData.child('cancelToken').isString()) || (data.child('cancelToken').val() === newData.child('cancelToken').val() && (data.child('status').val() === 'New' || data.child('status').val() === 'Confirmed') && newData.child('status').val() === 'Cancelled')))",
+        ".validate": "newData.hasChildren(['status', 'cancelToken', 'updatedAtUtc']) && newData.child('cancelToken').isString() && newData.child('cancelToken').val().length >= 32 && newData.child('cancelToken').val().length <= 128 && newData.child('updatedAtUtc').isString() && (newData.child('status').val() === 'New' || newData.child('status').val() === 'Confirmed' || newData.child('status').val() === 'Delivered' || newData.child('status').val() === 'Cancelled')",
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
